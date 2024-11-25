@@ -1,56 +1,55 @@
 name: Inputs and Outputs
+
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       dry-run:
         description: 'Skip deployment and only print build output'
-        type: boolean           
+        type: boolean
         default: false
       target:
         description: 'Which environment the workflow will target'
-        type: environment
+        type: string
         required: true
       tag:
         description: 'Release from which to build and deploy'
-        type: choice
-        options: 
-          - v1
-          - v2
-          - v3
+        type: string
         default: v3
       build-status:
         description: 'Choose the build status for the demo'
-        type: choice
-        options: 
-          - success
-          - failure
-        default: success   
+        type: string
+        default: success
+    outputs:
+      deploy-output:
+        description: 'The output message from the deploy step'
+
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.build.outputs.tag }}
       status: ${{ steps.build.outputs.status }}
-    steps:          
+    steps:
       - name: "Print GITHUB_OUTPUT path"
         run: |
-          echo "{{ $GITHUB_OUTPUT }}" 
+          echo "${{ github.output }}" 
       - name: Build
         id: build
         run: |
           echo "status=${{ inputs.build-status }}" >> $GITHUB_OUTPUT
           echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
-          echo "Mi var = ${{vars.MI_VAR}}"
+          echo "Mi var = ${{ vars.MI_VAR }}"
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{inputs.dry-run == false && needs.build.outputs.status == 'success' && needs.build.result == 'success'}}
-    environment: ${{ inputs.target }}
-    steps:          
+    if: ${{ inputs.dry-run == false && needs.build.outputs.status == 'success' && needs.build.result == 'success' }}
+    steps:
       - name: Deploy
+        id: deploy-step
         run: |
-          echo "Deploying to : ${{ inputs.target }} using tag ${{ needs.build.outputs.tag }}" 
-           echo "Mi var = ${{vars.MI_VAR}}"
- 
-    #  - El trabajo `build` se completó exitosamente.
+          echo "Deploying to: ${{ inputs.target }} using tag ${{ needs.build.outputs.tag }}"
+          echo "Mi var = ${{ vars.MI_VAR }}"
+          echo "Deployment complete!" >> $GITHUB_OUTPUT
+    outputs:
+      deploy-output: ${{ steps.deploy-step.outputs.deploy-output }}
